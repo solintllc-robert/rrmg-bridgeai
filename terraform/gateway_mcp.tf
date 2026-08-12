@@ -137,4 +137,10 @@ resource "aws_bedrockagentcore_gateway_target" "customer_directory" {
       region  = var.aws_region
     }
   }
+
+  lifecycle {
+    # AgentCore returns an empty metadata block that was never configured here,
+    # which Terraform would otherwise try to remove on every plan.
+    ignore_changes = [metadata_configuration]
+  }
 }

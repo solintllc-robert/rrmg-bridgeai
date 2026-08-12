@@ -8,6 +8,28 @@ Status key: **OPEN** = wants your call. **FYI** = decided, low risk.
 
 ---
 
+## Q0b. This machine's clock drifted during the work — FYI, worth knowing
+
+Partway through, this machine's clock fell about seven minutes behind real
+time. AWS rejects any request whose signature is more than five minutes old, so
+commands started failing with `InvalidSignatureException: Signature expired`
+even though nothing was wrong with the credentials or the stack.
+
+It corrected itself once the time service caught up, and everything passes now.
+It is recorded here because the failure is thoroughly misleading: it looks like
+a permissions problem, and I spent time chasing it as one. Some of the retries
+I attributed to AWS being slow to propagate a permission change were probably
+this instead.
+
+**If AWS commands start failing for no apparent reason,** compare the clock
+against AWS before investigating anything else:
+
+```bash
+date -u; curl -sI https://sts.us-east-1.amazonaws.com | grep -i '^date:'
+```
+
+---
+
 ## Q1. Password sign-in is enabled on the web app client — FYI
 
 **Chose:** the Cognito app client allows both the browser redirect flow

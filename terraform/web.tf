@@ -242,8 +242,11 @@ resource "aws_cloudfront_distribution" "web" {
     }
   }
 
+  # Using CloudFront's own certificate on the *.cloudfront.net name. The
+  # minimum TLS version is fixed by AWS in this mode and cannot be set here;
+  # specifying it produces a diff on every plan that never settles. It becomes
+  # configurable once a custom domain and ACM certificate are introduced.
   viewer_certificate {
     cloudfront_default_certificate = true
-    minimum_protocol_version       = "TLSv1.2_2021"
   }
 }

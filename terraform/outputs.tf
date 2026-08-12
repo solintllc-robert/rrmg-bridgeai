@@ -107,7 +107,7 @@ output "site_url" {
 
 output "docs_url" {
   description = "Public URL of the API documentation."
-  value       = "https://${aws_cloudfront_distribution.web.domain_name}/docs/"
+  value       = "https://${aws_cloudfront_distribution.web.domain_name}/docs.html"
 }
 
 output "web_bucket" {

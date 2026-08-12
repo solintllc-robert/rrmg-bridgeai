@@ -6,7 +6,7 @@ documentation viewers pull their code from a public CDN at page load, which
 would put part of this system outside AWS. Generating the page at build time
 keeps everything self-contained.
 
-  uv run --with pyyaml scripts/build-docs.py --spec <file> --base-url <url> --out <dir>
+  uv run --with pyyaml scripts/build-docs.py --spec <file> --base-url <url> --out <file>
 """
 
 import argparse
@@ -193,10 +193,10 @@ def main():
         schemas=render_schemas(spec),
     )
 
-    out_dir = pathlib.Path(args.out)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "index.html").write_text(page)
-    print(f"Wrote {out_dir / 'index.html'} ({len(page)} bytes)")
+    out_file = pathlib.Path(args.out)
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(page)
+    print(f"Wrote {out_file} ({len(page)} bytes)")
 
 
 if __name__ == "__main__":

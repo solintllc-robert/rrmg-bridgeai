@@ -97,6 +97,15 @@ cd web && npm install && npm run dev
 Runs at `http://localhost:5173`, already registered with Cognito as a permitted
 sign-in address.
 
+### Checking it still works
+
+```bash
+./scripts/verify.sh
+```
+
+21 checks across the whole stack — the API, sign-in, both gateways, the
+permission rules, and the public site. Currently all passing.
+
 ### Trying it without the browser
 
 ```bash
@@ -117,6 +126,7 @@ Other useful scripts:
 | `invoke-runtime.py` | Call the agent, directly or through the front door. |
 | `build-agent.sh` | Package the agent for deployment. |
 | `deploy-web.sh` | Build and publish the site. |
+| `verify.sh` | Check the whole deployed stack end to end. |
 
 ---
 

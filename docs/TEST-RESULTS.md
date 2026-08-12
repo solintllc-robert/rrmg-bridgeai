@@ -4,6 +4,16 @@ Every phase was checked against the live stack in account `817290607332`,
 region `us-east-1`. This records what was actually observed, and — just as
 importantly — what was not.
 
+**To re-run all of it yourself:**
+
+```bash
+./scripts/verify.sh
+```
+
+Last run: **21 checks, all passing.** The script covers everything below that
+does not need a language model, so it stays useful while model access is
+pending.
+
 ---
 
 ## Phase 1 — Mock customer API
