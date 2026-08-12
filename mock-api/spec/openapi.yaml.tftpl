@@ -1,0 +1,203 @@
+openapi: 3.0.3
+info:
+  title: Customer Directory API
+  description: >-
+    Read-only directory of customers, together with their business and
+    residential mailing addresses. Used to answer questions about who a
+    customer is, where they work, and where they live.
+  version: "1.0.0"
+
+servers:
+  - url: ${api_base_url}
+    description: Mock customer directory service
+
+paths:
+  /customers:
+    get:
+      operationId: searchCustomers
+      summary: Search the customer directory
+      description: >-
+        Find customers by partial name, partial company name, account status,
+        or account tier. Returns core directory fields only; it does not return
+        any addresses. Use this first to look up a customer's id when you only
+        know their name, then pass that id to the address operations.
+      parameters:
+        - name: name
+          in: query
+          required: false
+          description: >-
+            Case-insensitive partial name match, for example "dana" or
+            "whitfield".
+          schema:
+            type: string
+        - name: company
+          in: query
+          required: false
+          description: >-
+            Case-insensitive partial company name match, for example "harbor".
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Account status filter.
+          schema:
+            type: string
+            enum: [active, inactive, prospect, churned]
+        - name: account_tier
+          in: query
+          required: false
+          description: Account tier filter.
+          schema:
+            type: string
+            enum: [standard, growth, enterprise]
+      responses:
+        "200":
+          description: Matching customers.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    description: Number of customers matched.
+                  customers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Customer"
+
+  /customers/{customerId}:
+    get:
+      operationId: getCustomer
+      summary: Get one customer's directory record
+      description: >-
+        Return the core record for a single customer: name, email, phone,
+        company, job title, account status, tier, and the date they became a
+        customer. This operation does not return any address.
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: Customer identifier, for example C-1001.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The customer record.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "404":
+          description: No customer with that id.
+
+  /customers/{customerId}/work-address:
+    get:
+      operationId: getCustomerWorkAddress
+      summary: Get a customer's work address
+      description: >-
+        Return the business mailing address of a single customer, including
+        street, city, state, and postal code. This is the address of the
+        company office where the customer works.
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: Customer identifier, for example C-1001.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The customer's work address.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressResponse"
+        "404":
+          description: No customer with that id.
+
+  /customers/{customerId}/home-address:
+    get:
+      operationId: getCustomerHomeAddress
+      summary: Get a customer's home address
+      description: >-
+        Return the residential street address of a single customer, including
+        street, city, state, and postal code. This is personal information and
+        is held separately from the rest of the customer record.
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: Customer identifier, for example C-1001.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The customer's home address.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressResponse"
+        "403":
+          description: The caller is not authorized to read residential addresses.
+        "404":
+          description: No customer with that id.
+
+components:
+  schemas:
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Customer identifier, for example C-1001.
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        company:
+          type: string
+          description: The organization the customer works for.
+        job_title:
+          type: string
+        status:
+          type: string
+          description: One of active, inactive, prospect, or churned.
+        customer_since:
+          type: string
+          format: date
+        closed_on:
+          type: string
+          format: date
+          description: Present only for churned customers.
+        account_tier:
+          type: string
+          description: One of standard, growth, or enterprise.
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postal_code:
+          type: string
+
+    AddressResponse:
+      type: object
+      properties:
+        customer_id:
+          type: string
+        name:
+          type: string
+        address_type:
+          type: string
+          description: Either "work" or "home".
+        address:
+          $ref: "#/components/schemas/Address"
