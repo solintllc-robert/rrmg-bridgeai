@@ -141,6 +141,7 @@ redeployment. See [`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md).
 
 | File | Contents |
 |---|---|
+| [`docs/SUMMARY.md`](docs/SUMMARY.md) | Start here: what was built, what works, what does not. |
 | [`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md) | Decisions made without you, and one thing needing your action. |
 | [`docs/TEST-RESULTS.md`](docs/TEST-RESULTS.md) | What was tested, what was observed, what was not. |
 | [`docs/CODE-REVIEW.md`](docs/CODE-REVIEW.md) | A guided tour of the code, in reading order. |
