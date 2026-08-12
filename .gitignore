@@ -43,3 +43,7 @@ venv/
 .idea/
 .vscode/
 *.swp
+
+# Generated web config (contains deployed ids, regenerate with scripts/write-web-config.sh)
+web/.env.local
+web/.env.production

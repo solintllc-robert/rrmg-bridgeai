@@ -1,0 +1,11 @@
+[project]
+name = "customer-directory-agent"
+version = "1.0.0"
+description = "Strands agent answering customer directory questions through AgentCore Gateway."
+requires-python = ">=3.13"
+
+dependencies = [
+    "bedrock-agentcore",
+    "strands-agents",
+    "mcp",
+]
