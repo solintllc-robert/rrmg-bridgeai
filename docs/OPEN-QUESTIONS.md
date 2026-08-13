@@ -8,6 +8,25 @@ Status key: **OPEN** = wants your call. **FYI** = decided, low risk.
 
 ---
 
+## Q0a. Bug found and fixed: agent code changes were not deploying — FYI
+
+Found while chasing the first live error. Terraform was uploading new agent
+code to S3, reporting success, and leaving the runtime running the *old* code.
+
+The runtime's configuration named a bucket and a file path. Replacing the file
+at that path changed neither, so Terraform saw nothing to update and skipped
+the runtime entirely. The apply said it succeeded. The old agent kept
+answering. Nothing anywhere reported a problem.
+
+Fixed by pinning the exact object version in `terraform/runtime.tf`, so new
+code produces a new version id, which Terraform sees as a real change.
+
+Worth knowing because the failure was completely silent, and because anyone
+editing the agent before this fix would have concluded their changes had no
+effect.
+
+---
+
 ## Q0b. This machine's clock drifted during the work — FYI, worth knowing
 
 Partway through, this machine's clock fell about seven minutes behind real

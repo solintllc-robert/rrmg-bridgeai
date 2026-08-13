@@ -117,6 +117,13 @@ resource "aws_bedrockagentcore_agent_runtime" "agent" {
         s3 {
           bucket = aws_s3_bucket.artifacts.id
           prefix = local.agent_code_key
+
+          # Pin the exact object version. Without this the runtime keeps
+          # running whatever code it first loaded: uploading a new zip to the
+          # same key leaves the bucket and prefix unchanged, so Terraform sees
+          # nothing to update and the new code is never picked up. The failure
+          # is silent - the apply succeeds and the old agent keeps answering.
+          version_id = aws_s3_object.agent_code.version_id
         }
       }
     }

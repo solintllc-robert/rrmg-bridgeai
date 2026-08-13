@@ -88,7 +88,7 @@ anyone holding a valid token.
 | Development server serves the app | `200` |
 | Same-origin `/api` proxy reaches the agent | `200`, identity intact |
 | Production build | 7 KB of JavaScript, no runtime dependencies |
-| **Sign-in through a real browser** | **Not verified — see below** |
+| Sign-in through a real browser | Verified after the fact — see below |
 
 The browser automation tool could not start in this environment, so the
 redirect-and-return sign-in sequence has not been watched end to end. The
