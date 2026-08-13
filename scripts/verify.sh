@@ -124,7 +124,7 @@ check "deployed state matches the code" "0" "$?"
 echo
 echo "-------------------------------------------------------------------"
 printf "  %d passed, %d failed\n" "$PASS" "$FAIL"
-echo "  Not covered: the agent writing an answer (no model access yet),"
-echo "  and sign-in through a real browser. See docs/TEST-RESULTS.md."
+echo "  Not covered: the agent writing an answer, which needs Bedrock model"
+echo "  access. See docs/TEST-RESULTS.md."
 echo
 [[ "$FAIL" -eq 0 ]]
