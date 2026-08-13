@@ -90,12 +90,24 @@ anyone holding a valid token.
 | Production build | 7 KB of JavaScript, no runtime dependencies |
 | Sign-in through a real browser | Verified after the fact — see below |
 
-The browser automation tool could not start in this environment, so the
-redirect-and-return sign-in sequence has not been watched end to end. The
-pieces around it are verified: Cognito issues correct tokens, and the agent
-accepts them over the same path the browser uses. What is unproven is the
-browser-side exchange itself — the redirect out, the code coming back, and the
-swap for a token. **This is the first thing to try when you return.**
+This could not be checked while working unattended, because the browser
+automation tool would not start in this environment. **Robert then verified it
+by hand:** signing in as the admin user on the deployed site, the runtime logs
+show the token arriving, the tools gateway accepting it, and four tools listed —
+before the model call failed for the separate reason above.
+
+So the sign-in sequence works: the redirect out to Cognito, the code coming
+back, the exchange for a token, and that token being accepted all the way down
+the chain.
+
+That same attempt exposed two real defects, both now fixed:
+
+- **Agent code changes were never reaching the runtime.** Terraform replaced
+  the zip in S3 but the runtime kept running the code it first loaded, because
+  its configuration named an unchanged bucket and path. Every apply reported
+  success. See Q0a in OPEN-QUESTIONS.md.
+- **Failures surfaced as a bare `500` telling the user to read CloudWatch
+  logs.** The agent now returns a sentence explaining what went wrong.
 
 ## Phase 7 — Authorization
 
@@ -137,8 +149,6 @@ is verified — receiving the request, checking identity, discovering tools,
 having calls allowed or refused — but it has never composed a reply in words.
 When model access is granted this needs no redeployment; ask it a question and
 watch.
-
-**Browser sign-in**, as described under Phase 6.
 
 **Redeploying into a different account.** Not run, because tearing this stack
 down and rebuilding it would have left the environment broken for a long stretch
