@@ -71,9 +71,11 @@ data "aws_iam_policy_document" "runtime" {
   }
 
   statement {
-    sid       = "ReadAgentCode"
-    effect    = "Allow"
-    actions   = ["s3:GetObject"]
+    sid    = "ReadAgentCode"
+    effect = "Allow"
+    # The code is pinned to an object version below, and a version-scoped read
+    # needs its own permission - GetObject alone covers only the current one.
+    actions   = ["s3:GetObject", "s3:GetObjectVersion"]
     resources = ["${aws_s3_bucket.artifacts.arn}/${local.agent_code_key}"]
   }
 
@@ -118,11 +120,9 @@ resource "aws_bedrockagentcore_agent_runtime" "agent" {
           bucket = aws_s3_bucket.artifacts.id
           prefix = local.agent_code_key
 
-          # Pin the exact object version. Without this the runtime keeps
-          # running whatever code it first loaded: uploading a new zip to the
-          # same key leaves the bucket and prefix unchanged, so Terraform sees
-          # nothing to update and the new code is never picked up. The failure
-          # is silent - the apply succeeds and the old agent keeps answering.
+          # Pin the object version: re-uploading to the same key changes
+          # neither bucket nor prefix, so without this Terraform sees no diff
+          # and the runtime keeps serving the code it first loaded.
           version_id = aws_s3_object.agent_code.version_id
         }
       }
@@ -181,8 +181,7 @@ resource "aws_bedrockagentcore_agent_runtime" "agent" {
     max_lifetime                 = var.runtime_max_lifetime_seconds
   }]
 
-  depends_on = [
-    aws_iam_role_policy.runtime,
-    aws_s3_object.agent_code,
-  ]
+  # The code object is ordered by the version_id reference above; only the
+  # policy needs stating, since nothing here refers to it.
+  depends_on = [aws_iam_role_policy.runtime]
 }

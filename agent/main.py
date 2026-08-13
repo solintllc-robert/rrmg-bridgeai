@@ -15,10 +15,12 @@ import logging
 import os
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
+from botocore.exceptions import ClientError
 from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent
 from strands.models import BedrockModel
 from strands.tools.mcp import MCPClient
+from strands.types.exceptions import MCPClientInitializationError, ModelThrottledException
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("customer-directory-agent")
@@ -139,32 +141,55 @@ def _diagnostic(token):
 
 
 def _explain_failure(error):
-    """Translate a failure into a sentence worth showing to a person."""
-    text = str(error)
+    """Translate a failure into a sentence worth showing to a person.
 
-    if "use case details have not been submitted" in text:
-        return (
-            "I can reach the customer directory, but I have no language model "
-            "available to answer with. This account has not completed Bedrock's "
-            "model access form for Anthropic models. Someone with access to the "
-            "AWS console needs to submit it under Bedrock, Model access."
-        )
+    Dispatch on the exception type, and for AWS calls on the error code, which
+    is part of the API contract. The message text is only ever used to tell two
+    conditions apart that share a code - AWS is free to reword it, and a
+    rewording must not quietly demote a known failure to the catch-all below.
+    """
+    # The event loop wraps whatever the model provider raised.
+    cause = getattr(error, "original_exception", error)
 
-    if "ThrottlingException" in text or "Too many tokens" in text:
+    if isinstance(cause, ModelThrottledException):
         return (
             "The language model is temporarily rate limited. Please try again "
             "in a few moments."
         )
 
-    if "AccessDenied" in text or "not authorized" in text:
+    if isinstance(cause, MCPClientInitializationError):
         return (
-            "I was refused access to something I needed to answer that. If you "
-            "were asking for personal details, you may not be permitted to see "
-            "them."
+            "I could not reach the customer directory, so I have nothing to "
+            "answer from. That is a fault on our side, not something you did."
         )
 
+    if isinstance(cause, ClientError):
+        code = cause.response.get("Error", {}).get("Code", "")
+
+        # A one-time account setup step: Bedrock reports missing model access
+        # as a plain ResourceNotFoundException, which other missing resources
+        # also use, so here the message is the tiebreak rather than the signal.
+        if code == "ResourceNotFoundException" and "use case details" in str(cause):
+            return (
+                "I can reach the customer directory, but I have no language model "
+                "available to answer with. This account has not completed Bedrock's "
+                "model access form for Anthropic models. Someone with access to the "
+                "AWS console needs to submit it under Bedrock, Model access."
+            )
+
+        if code in ("AccessDeniedException", "AccessDenied"):
+            # This is the agent's own role being refused, never the caller's.
+            # A gateway refusal comes back as a tool result and is answered by
+            # the model under SYSTEM_PROMPT; it never surfaces as an exception
+            # here, so this must not be worded as a limit on the user.
+            return (
+                "I am not permitted to use the language model I need to answer "
+                "that. That is a configuration fault on our side, not a limit on "
+                "what you are allowed to see."
+            )
+
     # Anything unrecognised: say so plainly rather than pretending to answer.
-    return f"Something went wrong while answering that, and I could not recover: {text}"
+    return f"Something went wrong while answering that, and I could not recover: {error}"
 
 
 @app.entrypoint
@@ -189,21 +214,18 @@ def invoke(payload, context):
     model = BedrockModel(model_id=MODEL_ID)
 
     with gateway:
-        tools = gateway.list_tools_sync()
-        logger.info("gateway exposed %d tools", len(tools))
-
-        agent = Agent(model=model, tools=tools, system_prompt=SYSTEM_PROMPT)
         try:
-            result = agent(prompt)
+            tools = gateway.list_tools_sync()
+            logger.info("gateway exposed %d tools", len(tools))
+
+            agent = Agent(model=model, tools=tools, system_prompt=SYSTEM_PROMPT)
+            return {"result": str(agent(prompt))}
         except Exception as error:
-            # Turn infrastructure failures into something a person reading the
-            # screen can act on. Without this the browser shows a bare 500 and
-            # a suggestion to go and read server logs, which is no use to the
-            # person who just asked a question.
+            # A bare 500 and a suggestion to read server logs is no use to the
+            # person who just asked a question, so every failure from here on
+            # leaves as a sentence instead - reaching the gateway included.
             logger.exception("agent invocation failed")
             return {"result": _explain_failure(error)}
-
-    return {"result": str(result)}
 
 
 if __name__ == "__main__":
