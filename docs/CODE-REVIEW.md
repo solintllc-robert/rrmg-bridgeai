@@ -2,14 +2,14 @@
 
 A reading order for the code, built around one question: **how does the system
 know who is asking, and how does it stop the wrong person seeing a home
-address?** Everything else is plumbing in service of that.
+address?** Everything else exists to serve that.
 
 Roughly 45 minutes. Six stops, following a single request from the browser to
 the data and back.
 
 ---
 
-## Stop 1 — The data, and the seam cut into it
+## Stop 1 — The data, and why the home address is kept separate
 
 **`mock-api/src/app.py`**
 
@@ -92,7 +92,7 @@ entirely.
 - **`main.py` line 153** — the agent opens the tools gateway *using the
   caller's token*, not one of its own.
 
-**Why it matters.** This is the hinge of the whole proof of concept. The agent
+**Why it matters.** Everything else depends on this one line. The agent
 is not a privileged actor holding keys to the customer database. It borrows the
 identity of whoever asked, which is why the gateway can make a decision about
 that person a moment later.

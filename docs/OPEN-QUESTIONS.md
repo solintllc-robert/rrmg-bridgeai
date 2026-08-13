@@ -153,11 +153,66 @@ do so. Confirmed empirically, not just read off the quota table:
 Choosing a different model cannot work around this, and neither can waiting:
 the allowance is zero rather than exhausted.
 
-**What to do.** Raise an AWS Support case asking for Bedrock on-demand
-inference quota on account 817290607332. This is the usual state of a young AWS
-account that has not yet been enabled for Bedrock on-demand inference, and it
-is not self-service — Service Quotas reports the values as not adjustable. The
-Opus error message says the same thing in its own words: *"contact AWS Sales."*
+**File it against Amazon Bedrock, not AgentCore.** Both exist as separate
+services in Service Quotas (`bedrock` and `bedrock-agentcore`), and it is worth
+being sure which one is starved. Of AgentCore's 184 quotas, **not one is zero** —
+the runtime has 1,000 data-plane calls per second and 25 new sessions per
+second. The throttle happens one layer further in, when the agent's
+`BedrockModel` calls `bedrock-runtime` to generate text; that call is billed and
+throttled against plain Bedrock no matter what is making it.
+
+**The per-day quotas are not the ones to ask for.** They are non-adjustable, so
+Service Quotas will not take a request for them. AWS documents the route as
+asking for the *per-minute* quota instead, after which the support team offers
+to raise the daily one alongside it:
+
+> To request an increase for any combination of these quotas, request an
+> increase for the **Cross-Region InvokeModel tokens per minute** quota […]
+> After you do so, the support team will reach out and offer you the option of
+> also increasing the other two quotas.
+
+**Why self-service cannot fix this on its own.** The per-minute quotas *are*
+adjustable, but Service Quotas refuses any value at or below the AWS default,
+and this account sits below the default rather than above it:
+
+```
+L-F4DDD3EB  Cross-region tokens per minute, Sonnet 4.5    applied 0   default 5,000,000
+L-4A6BFAB1  Cross-region requests per minute, Sonnet 4.5  applied 0   default 10,000
+```
+
+A request for a sane proof-of-concept number — 100,000 tokens per minute — is
+rejected outright: *"You must provide a quota value greater than the default
+quota value of 5000000.0."* There is no way to say "restore me to the default"
+through the API. That is the whole trap: the applied value is zero, and the one
+self-service tool that could move it will only move it past five million.
+
+**What was requested, 2026-08-12.** Two increases, at the only values the API
+would accept, both `PENDING`:
+
+| Request id | Quota | Asked for |
+|---|---|---|
+| `8b76593910b64a19bda2c6448875d99fa5DJq9cR` | `L-F4DDD3EB` tokens per minute | 5,000,001 |
+| `ad2cbecedcde4cb5b88f4c7c2a3d2be7fl1cuLYo` | `L-4A6BFAB1` requests per minute | 10,001 |
+
+```bash
+aws service-quotas list-requested-service-quota-change-history \
+  --service-code bedrock --status PENDING --output table
+```
+
+The numbers are deliberately absurd for a proof of concept, and are not the
+point — the point is that the request opens the channel to the support team,
+whose follow-up is where a workable allowance actually gets set. Watch
+`solint+aws1@solintllc.com` for it.
+
+**Two things that may go wrong with it.** AWS states that *"priority will be
+given to customers who generate traffic that consumes their existing quota
+allocation. Your request might be denied if you don't meet this condition"* —
+which cannot be met from an allocation of zero, so the case may need arguing on
+exactly that point. And this account has no Premium Support subscription, so
+there is no response-time commitment; a denial is still useful, because its
+request id can be cited in a console limit-increase case that spells out the
+applied-versus-default gap. Account 817290607332 is the management account of
+its organisation, so there is no delegation step in the way.
 
 **Nothing needs redeploying when it is granted.** The model id is already set
 on the runtime. Ask a question and it will answer.
