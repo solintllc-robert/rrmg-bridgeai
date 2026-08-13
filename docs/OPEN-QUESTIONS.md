@@ -125,31 +125,48 @@ names appear in the token, the policy, and the test scripts.
 
 ---
 
-## Q0. BLOCKER: no usable model in this account — NEEDS YOUR ACTION
+## Q0. BLOCKER: this account has no model capacity at all — NEEDS AN AWS SUPPORT REQUEST
 
-The agent is built and deployed, but it cannot currently call any language
-model, because both available routes are closed off in this account:
+The agent is deployed and working right up to the point of writing a sentence.
+It cannot get past that, and the reason is not what it first appeared to be.
 
-- **Anthropic models** (Claude Sonnet 4.5 and every other Claude) return
-  `ResourceNotFoundException: Model use case details have not been submitted
-  for this account. Fill out the Anthropic use case details form before using
-  the model.` This is a one-time form in the Bedrock console and cannot be
-  done from the command line.
-- **Amazon Nova models** return `ThrottlingException: Too many tokens per day`
-  on every attempt, so the account's daily allowance for them is used up.
+**What it is not.** It is not model access, and it is not the choice of model.
+Bedrock's model access page has been retired — models now enable themselves on
+first use. The Anthropic use case form was submitted and did work: the error
+moved on from "use case details have not been submitted" to something else.
 
-**What to do:** open the Bedrock console in us-east-1, go to Model access, and
-submit the Anthropic use case details form. Access usually becomes active
-within about fifteen minutes. Nothing needs redeploying afterwards — the model
-id is already set on the runtime.
+**What it actually is.** Every one of this account's 99 Bedrock daily token
+quotas is set to **zero**, and every one is marked **not adjustable**:
+
+```
+Model invocation max tokens per day for <any model>    Value: 0.0   Adjustable: False
+```
+
+So the account is allowed to call the models and has no allowance with which to
+do so. Confirmed empirically, not just read off the quota table:
+
+- **Ten models across six providers** — Amazon Nova, Meta Llama, Mistral,
+  DeepSeek, Cohere, AI21 — all return `ThrottlingException: Too many tokens per
+  day`.
+- **Four regions** — us-east-1, us-west-2, us-east-2, eu-west-1 — all identical.
+
+Choosing a different model cannot work around this, and neither can waiting:
+the allowance is zero rather than exhausted.
+
+**What to do.** Raise an AWS Support case asking for Bedrock on-demand
+inference quota on account 817290607332. This is the usual state of a young AWS
+account that has not yet been enabled for Bedrock on-demand inference, and it
+is not self-service — Service Quotas reports the values as not adjustable. The
+Opus error message says the same thing in its own words: *"contact AWS Sales."*
+
+**Nothing needs redeploying when it is granted.** The model id is already set
+on the runtime. Ask a question and it will answer.
 
 **What this did and did not stop.** Everything except the agent's own sentence
-writing is built and tested. The identity chain is proven end to end using a
-diagnostic mode on the agent that lists the tools a caller can reach without
-invoking a model, and the authorization rules are tested directly against the
-gateway, which is where they are actually enforced. What has not been observed
-is the agent forming an answer in words. See `docs/TEST-RESULTS.md` for exactly
-what was and was not exercised.
+writing is built and tested — 21 automated checks, all passing. The identity
+chain is proven end to end, and the authorization rules are proven at the
+gateway where they are enforced. What has never been observed is the agent
+forming a reply in words.
 
 ---
 

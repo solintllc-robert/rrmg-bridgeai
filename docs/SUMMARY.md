@@ -64,23 +64,20 @@ Full detail in `docs/TEST-RESULTS.md`.
 
 ## What does not work yet
 
-**One thing needs you: no language model is available on this account.** Every
-Claude model returns "use case details have not been submitted for this
-account", which is a form in the Bedrock console. Amazon's own models are
-separately out of daily quota.
+**One thing needs you: this account has no model capacity at all.** Not a
+permissions problem and not a model choice — every Bedrock daily token quota on
+the account is zero and marked not adjustable. Verified against ten models from
+six providers across four regions; all refuse identically. It needs an AWS
+support request to raise the Bedrock quota.
 
 So the chatbot has never actually written a sentence. Everything around that —
 receiving the question, checking who is asking, finding the tools, being
-allowed or refused — is tested and working, using a diagnostic mode built for
-the purpose. Submitting the form is the only step; nothing needs redeploying.
+allowed or refused — is tested and working. Nothing here needs redeploying when
+the quota arrives; the model is already configured.
 
-**Two smaller gaps:**
+**One smaller gap:**
 
-1. **Sign-in through a real browser is unverified.** The browser automation tool
-   would not start here. Everything either side of it is confirmed, but nobody
-   has watched the redirect out to Cognito and back. First thing to try.
-
-2. **The chatbot can be reached directly, bypassing the firewall.** AgentCore
+1. **The chatbot can be reached directly, bypassing the firewall.** AgentCore
    offers a setting to prevent this; it conflicts with passing the user's
    identity through, and turning it on rejected legitimate traffic too. I chose
    identity over the lockdown, since identity is the entire point. It is one
@@ -114,6 +111,10 @@ no reason, check the clock first — the command is in `docs/OPEN-QUESTIONS.md`.
 
 ## Where to start when you are back
 
-1. Submit the Bedrock model access form, then ask the chatbot a real question.
-2. Sign in through a browser at the address above.
-3. Walk the code with `docs/CODE-REVIEW.md` — six stops, about 45 minutes.
+1. Raise an AWS support request for Bedrock on-demand token quota. Until that
+   lands, the chatbot cannot answer, and no code change will alter that.
+2. Walk the code with `docs/CODE-REVIEW.md` — six stops, about 45 minutes.
+
+Browser sign-in has since been confirmed working: signing in on the deployed
+site produced a token that the tools gateway accepted. That attempt also
+exposed two real defects, both fixed — see Q0a in `docs/OPEN-QUESTIONS.md`.

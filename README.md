@@ -132,10 +132,11 @@ Other useful scripts:
 
 ## Before this can be demonstrated
 
-**Bedrock model access is not enabled on this account.** The agent is deployed
-and everything around the model is working, but it cannot yet produce an answer
-in words. Enabling it is a form in the Bedrock console and needs no
-redeployment. See [`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md).
+**This AWS account has no Bedrock model capacity.** Every daily token quota is
+zero and not self-adjustable, across all models, providers, and regions — so the
+agent can do everything except write the final sentence. It needs an AWS support
+request to raise the quota, not a change to this code. See
+[`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md).
 
 ## Documents
 

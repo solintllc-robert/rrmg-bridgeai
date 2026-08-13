@@ -152,9 +152,20 @@ def _explain_failure(error):
     cause = getattr(error, "original_exception", error)
 
     if isinstance(cause, ModelThrottledException):
+        # Two very different conditions share this exception. A per-minute
+        # limit clears on its own in seconds; a daily allowance of zero never
+        # does, and telling someone to try again shortly would be false.
+        if "per day" in str(cause):
+            return (
+                "I can reach the customer directory, but this AWS account has no "
+                "language model capacity allocated, so I cannot compose an answer. "
+                "Its daily token allowance is zero for every model, which is not "
+                "something that clears with time or by choosing a different model. "
+                "It needs an AWS support request to raise the Bedrock quota."
+            )
         return (
-            "The language model is temporarily rate limited. Please try again "
-            "in a few moments."
+            "The language model is busy right now. Please try again in a few "
+            "moments."
         )
 
     if isinstance(cause, MCPClientInitializationError):

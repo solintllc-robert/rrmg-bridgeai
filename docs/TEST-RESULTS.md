@@ -143,8 +143,8 @@ what the model decides to do.
 
 ## Not tested
 
-**The agent writing an answer.** No language model is reachable from this
-account (Q0 in OPEN-QUESTIONS.md). Everything the agent does *around* the model
+**The agent writing an answer.** This account has zero Bedrock token quota on
+every model, in every region (Q0 in OPEN-QUESTIONS.md). Everything the agent does *around* the model
 is verified — receiving the request, checking identity, discovering tools,
 having calls allowed or refused — but it has never composed a reply in words.
 When model access is granted this needs no redeployment; ask it a question and
