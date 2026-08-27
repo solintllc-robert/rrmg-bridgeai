@@ -32,7 +32,10 @@ resource "terraform_data" "build_agent" {
   triggers_replace = local.agent_source_hash
 
   provisioner "local-exec" {
-    command = "${path.module}/../scripts/build-agent.sh"
+    # Named explicitly because the default interpreter on Windows is cmd.exe,
+    # which cannot run a shell script.
+    interpreter = ["bash", "-c"]
+    command     = "${path.module}/../scripts/build-agent.sh"
   }
 }
 

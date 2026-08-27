@@ -39,6 +39,12 @@ resource "aws_bedrockagentcore_policy" "directory_read" {
       CEDAR
     }
   }
+
+  # The engine validates action names against the tools the gateway actually
+  # exposes, and those only exist once the target has read the OpenAPI spec.
+  # Without this the policy is created in parallel with the target and is
+  # rejected for naming actions that do not exist yet.
+  depends_on = [aws_bedrockagentcore_gateway_target.customer_directory]
 }
 
 # Home addresses: only for members of the customer-admin group. The group comes
@@ -68,4 +74,8 @@ resource "aws_bedrockagentcore_policy" "home_address" {
       CEDAR
     }
   }
+
+  # See the note on directory_read: the action must exist on the gateway before
+  # a policy may name it.
+  depends_on = [aws_bedrockagentcore_gateway_target.customer_directory]
 }
