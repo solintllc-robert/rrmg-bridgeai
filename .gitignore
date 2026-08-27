@@ -12,6 +12,9 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Locally downloaded Terraform binary
+terraform.exe
+
 # Terraform variable files may carry account-specific values
 # deployed.auto.tfvars is generated per-account by scripts/deploy-web.sh
 *.auto.tfvars

@@ -32,6 +32,7 @@ data "aws_iam_policy_document" "gateway_assume_role" {
 
 resource "aws_iam_role" "gateway_mcp" {
   name               = "${var.name_prefix}-acgw-mcp"
+  path               = var.iam_role_path
   assume_role_policy = data.aws_iam_policy_document.gateway_assume_role.json
 }
 

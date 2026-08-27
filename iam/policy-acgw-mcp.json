@@ -1,0 +1,29 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadOpenApiSpec",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::rrmg-bridgeai-artifacts-278820798553/specs/*"
+    },
+    {
+      "Sid": "InvokeMockApi",
+      "Effect": "Allow",
+      "Action": "execute-api:Invoke",
+      "Resource": "arn:aws:execute-api:us-east-1:278820798553:*/*"
+    },
+    {
+      "Sid": "ReadPolicyEngine",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-agentcore:GetPolicyEngine",
+        "bedrock-agentcore:GetPolicy",
+        "bedrock-agentcore:ListPolicies",
+        "bedrock-agentcore:AuthorizeAction",
+        "bedrock-agentcore:PartiallyAuthorizeActions"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

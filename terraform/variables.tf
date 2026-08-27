@@ -15,6 +15,12 @@ variable "name_prefix" {
   }
 }
 
+variable "iam_role_path" {
+  description = "Path for the stack's execution roles. The account only permits role creation under /bridge-ai/, so this is not free to change."
+  type        = string
+  default     = "/bridge-ai/"
+}
+
 variable "tags" {
   description = "Tags applied to every resource in the stack."
   type        = map(string)

@@ -51,6 +51,7 @@ resource "aws_s3_object" "agent_code" {
 
 resource "aws_iam_role" "runtime" {
   name               = "${var.name_prefix}-runtime"
+  path               = var.iam_role_path
   assume_role_policy = data.aws_iam_policy_document.gateway_assume_role.json
 }
 

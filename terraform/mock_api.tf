@@ -10,6 +10,7 @@ data "archive_file" "mock_api" {
 
 resource "aws_iam_role" "mock_api" {
   name = "${var.name_prefix}-mock-api-lambda"
+  path = var.iam_role_path
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

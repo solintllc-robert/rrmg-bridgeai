@@ -15,6 +15,7 @@
 
 resource "aws_iam_role" "gateway_api" {
   name               = "${var.name_prefix}-acgw-api"
+  path               = var.iam_role_path
   assume_role_policy = data.aws_iam_policy_document.gateway_assume_role.json
 }
 
