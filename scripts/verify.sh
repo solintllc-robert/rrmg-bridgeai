@@ -7,7 +7,9 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export AWS_PROFILE="${AWS_PROFILE:-solint-standard}"
+# Only fall back to the shared profile when the environment has no credentials
+# of its own; that profile is not configured on every machine.
+[[ -n "${AWS_ACCESS_KEY_ID:-}" ]] || export AWS_PROFILE="${AWS_PROFILE:-solint-standard}"
 cd "$ROOT/terraform"
 
 PASS=0
@@ -40,7 +42,9 @@ BUCKET="$(terraform output -raw web_bucket)"
 
 echo
 echo "1. Mock API — reachable only with an AWS signature"
-eval "$(aws configure export-credentials --profile "$AWS_PROFILE" --format env)"
+# No --profile: this resolves whatever the environment is already using, which
+# may be temporary credentials rather than a named profile.
+eval "$(aws configure export-credentials --format env)"
 sig() { curl -s --aws-sigv4 "aws:amz:us-east-1:execute-api" \
   --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" \
   -H "x-amz-security-token: $AWS_SESSION_TOKEN" "$API$1"; }

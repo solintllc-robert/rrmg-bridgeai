@@ -10,7 +10,9 @@ set -euo pipefail
 
 WHO="${1:-admin}"
 TF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../terraform" && pwd)"
-export AWS_PROFILE="${AWS_PROFILE:-solint-standard}"
+# Only fall back to the shared profile when the environment has no credentials
+# of its own; that profile is not configured on every machine.
+[[ -n "${AWS_ACCESS_KEY_ID:-}" ]] || export AWS_PROFILE="${AWS_PROFILE:-solint-standard}"
 
 case "$WHO" in
   admin)   USER_VAR="admin_user_email";   PASS_VAR="admin_user_password"   ;;

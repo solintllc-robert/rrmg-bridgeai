@@ -46,7 +46,10 @@ def main():
     who = sys.argv[1] if len(sys.argv) > 1 else "admin"
     prompt = sys.argv[2] if len(sys.argv) > 2 else "What is Dana Whitfield's home address?"
 
-    os.environ.setdefault("AWS_PROFILE", "solint-standard")
+    # Only fall back to the shared profile when the environment has no
+    # credentials of its own; that profile is not configured on every machine.
+    if not os.environ.get("AWS_ACCESS_KEY_ID"):
+        os.environ.setdefault("AWS_PROFILE", "solint-standard")
     os.environ["ACGW_MCP_URL"] = terraform_output("acgw_mcp_url")
 
     sys.path.insert(0, str(ROOT / "agent"))

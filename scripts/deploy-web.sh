@@ -8,7 +8,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export AWS_PROFILE="${AWS_PROFILE:-solint-standard}"
+# Only fall back to the shared profile when the environment has no credentials
+# of its own; that profile is not configured on every machine.
+[[ -n "${AWS_ACCESS_KEY_ID:-}" ]] || export AWS_PROFILE="${AWS_PROFILE:-solint-standard}"
 
 cd "$ROOT/terraform"
 SITE_URL="$(terraform output -raw site_url)"
