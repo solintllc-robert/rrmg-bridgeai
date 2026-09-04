@@ -10,9 +10,8 @@ importantly — what was not.
 ./scripts/verify.sh
 ```
 
-Last run: **21 checks, all passing.** The script covers everything below that
-does not need a language model, so it stays useful while model access is
-pending.
+**24 checks.** All but the memory section run without a language model, so most
+of the script stays useful if Bedrock capacity is ever the problem again.
 
 ---
 
@@ -137,18 +136,36 @@ what the model decides to do.
 | Reaching the S3 bucket directly | `403` — only CloudFront can read it |
 | Agent through CloudFront `/api` | `200`, identity intact |
 | Firewall attached | Yes — common rule set plus rate limiting |
-| Tags on every resource | 15 of 15, including all AgentCore resources |
+| Tags on every resource | 16 of 16, including all AgentCore resources |
+
+---
+
+## Memory — what the agent carries between questions
+
+Three checks, and the second and third are the ones that matter. The first shows
+the feature works; the others show it cannot be used to get round the permission
+rules, which is the risk that comes with it.
+
+| Check | Result |
+|---|---|
+| Ask "look up Dana Whitfield", then "what is her home address?" | Answered — the pronoun is resolved from the earlier turn |
+| Same follow-up in a brand new conversation | Not answered — no history to resolve it against |
+| Same follow-up, same conversation id, different caller | Not answered — history is filed under the caller's own identity |
+
+The second and third would both be *silent* failures if they broke: the agent
+would answer, and the answer would look right. That is why they are here rather
+than left to inspection.
+
+Not covered by the script: what happens when a caller's group membership changes
+mid-conversation. By construction the conversation id carries a fingerprint of
+the caller's groups, so a change starts a fresh conversation — but exercising it
+means editing a Cognito group between two turns, which is more setup than the
+script should carry. Verified by reading the code (`_memory_session` in
+`agent/main.py`) rather than by running it.
 
 ---
 
 ## Not tested
-
-**The agent writing an answer.** This account has zero Bedrock token quota on
-every model, in every region (Q0 in OPEN-QUESTIONS.md). Everything the agent does *around* the model
-is verified — receiving the request, checking identity, discovering tools,
-having calls allowed or refused — but it has never composed a reply in words.
-When model access is granted this needs no redeployment; ask it a question and
-watch.
 
 **Redeploying into a different account.** Not run, because tearing this stack
 down and rebuilding it would have left the environment broken for a long stretch

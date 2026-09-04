@@ -61,15 +61,29 @@ def main():
     parser.add_argument("--diagnostic", action="store_true", help="Check the identity chain without calling a model.")
     parser.add_argument("--via-gateway", action="store_true", help="Invoke through ACGW-API instead of the runtime directly.")
     parser.add_argument("--session", default=None)
+    parser.add_argument(
+        "--conversation",
+        default=None,
+        help="Continue a stored conversation. Pass the same value twice to ask a follow-up.",
+    )
     parser.add_argument("prompt", nargs="?", default="What is Dana Whitfield's home address?")
     args = parser.parse_args()
 
     token = get_token(args.user)
     url = build_url(args.via_gateway)
-    body = {"diagnostic": True} if args.diagnostic else {"prompt": args.prompt}
 
     # The runtime requires a session id of at least 33 characters.
     session_id = args.session or f"{args.user}-{uuid.uuid4().hex}"
+
+    if args.diagnostic:
+        body = {"diagnostic": True}
+    else:
+        body = {"prompt": args.prompt}
+        # The header alone does not reach the agent through ACGW-API, so the
+        # conversation id travels in the body. Defaults to the session id, which
+        # makes a single call self-contained and a follow-up a matter of passing
+        # --conversation with the same value.
+        body["conversation_id"] = args.conversation or session_id
 
     request = urllib.request.Request(
         url,
@@ -85,6 +99,8 @@ def main():
 
     print(f"--- POST {url.split('?')[0]}", file=sys.stderr)
     print(f"--- user: {args.user}  session: {session_id}", file=sys.stderr)
+    if "conversation_id" in body:
+        print(f"--- conversation: {body['conversation_id']}", file=sys.stderr)
 
     try:
         with urllib.request.urlopen(request, timeout=180) as response:

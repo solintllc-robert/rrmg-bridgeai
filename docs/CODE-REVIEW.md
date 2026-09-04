@@ -4,7 +4,7 @@ A reading order for the code, built around one question: **how does the system
 know who is asking, and how does it stop the wrong person seeing a home
 address?** Everything else exists to serve that.
 
-Roughly 45 minutes. Six stops, following a single request from the browser to
+Roughly 50 minutes. Seven stops, following a single request from the browser to
 the data and back.
 
 ---
@@ -142,7 +142,41 @@ agent instructions, two users, different outcomes.
 
 ---
 
-## Stop 6 — The edge, and one deliberate naming choice
+## Stop 6 — The way round stop 5, and what closes it
+
+**`terraform/memory.tf`** and **`_memory_session` in `agent/main.py`**
+
+Read this immediately after stop 5, because it is about the one route that goes
+past it. Stop 5 rules on tool calls. Conversation history is not a tool call: it
+arrives in the model's context directly, and the policy engine never sees it. So
+anything the store is willing to replay is, by definition, data the gateway does
+not get asked about.
+
+- **`memory.tf`** — there are no memory strategies attached, which is what keeps
+  this to a single conversation. Nothing is extracted and nothing is carried
+  between conversations. The comment block is the argument for why.
+- **`main.py`, `_memory_session`** — two ids, and neither comes from the request
+  body. `actor_id` is the caller's `sub` claim out of the validated token: a
+  caller able to name their own actor id could name somebody else's. `session_id`
+  has a fingerprint of the caller's group list mixed into it, so losing a group
+  starts a fresh conversation rather than inheriting the previous one's contents.
+- **`runtime.tf`, the `ConversationMemory` statement** — note what is *not* in
+  it. `RetrieveMemoryRecords` is the call that reads long-term memory, and it is
+  withheld on purpose, so that adding a strategy later fails loudly instead of
+  working.
+
+**Question to push on:** the group fingerprint protects a conversation. It does
+not protect a long-term namespace, because a namespace outlives conversations.
+If long-term memory is ever wanted, that mitigation does not carry over and a
+different one is needed — see Q6 in `OPEN-QUESTIONS.md`.
+
+**Evidence it works:** `docs/TEST-RESULTS.md`, the memory section. Two of the
+three checks there are about isolation rather than about remembering, because
+those are the two that would fail silently.
+
+---
+
+## Stop 7 — The edge, and one deliberate naming choice
 
 **`terraform/web.tf`** and **`web/src/auth.js`**
 
@@ -184,10 +218,15 @@ directly, bypassing CloudFront and the firewall. Is that acceptable? See Q2b in
    `ReadPolicyEngine` block. Scoping it to the policy engine's own address was
    rejected by AWS even though the address matched exactly. Worth another look.
 
-5. **The agent has never written an answer.** Everything around the model is
-   tested; the model itself is unreachable from this account. Read
-   `TEST-RESULTS.md` for the precise boundary between what is proven and what
-   is assumed.
+5. **Memory is short-term on purpose** (stop 6). It is the decision here most
+   likely to be reversed by somebody adding a feature in good faith, because
+   "make it remember me" sounds like an improvement and reads as one in a
+   backlog. Q6 in `OPEN-QUESTIONS.md` is the argument; challenge it there.
+
+6. **A group change mid-conversation is verified by reading, not by running.**
+   The fingerprint in the session id should make it start a fresh conversation.
+   Exercising it means editing a Cognito group between two turns, which the
+   verify script does not do. Worth doing once by hand.
 
 ---
 

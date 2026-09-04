@@ -30,9 +30,9 @@ Browser ──→ Cognito                         sign in, receive a token
              └── /api/*  ──→ ACGW-API       front door
                                   │
                                   ↓
-                              Runtime       the agent
-                                  │
-                                  ↓
+                              Runtime  ←──→  Memory   what was said
+                                  │                   earlier in this
+                                  ↓                   conversation
                              ACGW-MCP       tools, and the authorization rules
                                   │
                                   ↓
@@ -45,6 +45,7 @@ Browser ──→ Cognito                         sign in, receive a token
 | **CloudFront + WAF** | Single public address; puts the page and the agent on one origin. |
 | **ACGW-API** | Front door onto the agent, giving it a clean stable URL. |
 | **Runtime** | Runs the agent. Checks the caller's token before the agent starts. |
+| **Memory** | The turns of the conversation in progress, so a follow-up question makes sense. |
 | **ACGW-MCP** | Turns the REST API into tools, and decides who may call which. |
 | **Mock API** | The customer records: names, companies, work and home addresses. |
 
@@ -67,6 +68,24 @@ behaviour, which is not a security control.
 
 There are no stored passwords or API keys anywhere in this system. Every step is
 either a token belonging to a person, or one AWS service assuming a role.
+
+### Where remembering could have undone that
+
+The assistant remembers the conversation you are having, so "and her work
+address?" works. Memory is worth being careful with here, because it is the one
+thing that can put a customer's details in front of the model without the
+gateway being asked first — the gateway rules on tool calls, and replayed
+history is not a tool call.
+
+So the store holds one conversation at a time and extracts nothing from it.
+History is filed under the caller's own identity, and under the groups their
+token carried, which means losing a permission starts a new conversation rather
+than inheriting the old one. Somebody who could read home addresses this morning
+and cannot this afternoon is not read them back by the assistant.
+
+The cost of that restraint is that the assistant does not know you across
+conversations. That is the right trade here: this is a directory, and the
+records it reads are the live ones, not what someone was told last week.
 
 ---
 
@@ -103,8 +122,8 @@ sign-in address.
 ./scripts/verify.sh
 ```
 
-21 checks across the whole stack — the API, sign-in, both gateways, the
-permission rules, and the public site. Currently all passing.
+24 checks across the whole stack — the API, sign-in, both gateways, the
+permission rules, what the agent remembers, and the public site.
 
 ### Trying it without the browser
 
@@ -115,6 +134,16 @@ permission rules, and the public site. Currently all passing.
 
 The two test users differ only in group membership, which is what the
 permission rule keys on.
+
+To hold a conversation rather than ask one question, run the turns together:
+
+```bash
+./scripts/test-agent-local.py admin "Look up Dana Whitfield" "Where does she live?"
+```
+
+The second question names nobody, so an answer to it is the agent remembering
+the first. `invoke-runtime.py --conversation <id>` does the same against the
+deployed runtime, one turn per call.
 
 Other useful scripts:
 
@@ -129,14 +158,6 @@ Other useful scripts:
 | `verify.sh` | Check the whole deployed stack end to end. |
 
 ---
-
-## Before this can be demonstrated
-
-**This AWS account has no Bedrock model capacity.** Every daily token quota is
-zero and not self-adjustable, across all models, providers, and regions — so the
-agent can do everything except write the final sentence. It needs an AWS support
-request to raise the quota, not a change to this code. See
-[`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md).
 
 ## Documents
 
@@ -163,7 +184,8 @@ docs/          notes for review
 Everything is pay-per-use except the web firewall, which is roughly $6–10 a
 month. Idle, this stack costs a few dollars a month. Agent sessions end after
 15 minutes of inactivity and cannot outlive an hour, so nothing can quietly run
-up a bill.
+up a bill. Stored conversations are deleted after seven days, which is the
+shortest AgentCore Memory allows.
 
 ## Removing it
 

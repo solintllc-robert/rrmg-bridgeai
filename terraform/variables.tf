@@ -78,6 +78,12 @@ variable "runtime_max_lifetime_seconds" {
   default     = 3600
 }
 
+variable "memory_event_expiry_days" {
+  description = "How long a conversation's stored turns survive. Seven days is the shortest AgentCore Memory accepts."
+  type        = number
+  default     = 7
+}
+
 variable "acgw_api_target_name" {
   description = "Target name on ACGW-API. Appears in the invoke path, so it is part of the public URL."
   type        = string

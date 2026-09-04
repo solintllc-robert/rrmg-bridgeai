@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # End-to-end check of the deployed stack.
 #
-# Runs every check that does not need a language model, so it stays useful
-# while Bedrock model access is pending. Prints a pass or fail line per check
-# and exits non-zero if any fail.
+# Prints a pass or fail line per check and exits non-zero if any fail. Every
+# section but section 6 works without a language model, so most of this stays
+# useful if Bedrock capacity is ever the problem again; section 6 is about what
+# the agent remembers between questions, which cannot be shown without one.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -92,7 +93,33 @@ contains "agent sees the caller's group" "customer-admin" "$DIAG"
 contains "agent reaches the tools gateway as that caller" "getCustomerHomeAddress" "$DIAG"
 
 echo
-echo "6. Runtime — refuses callers without a valid token"
+echo "6. Memory — the agent follows a conversation, and only its own"
+ask() { # ask <user> <conversation> <prompt>
+  "$ROOT/scripts/invoke-runtime.py" --user "$1" --conversation "$2" "$3" 2>/dev/null
+}
+CONV="memory-$(uuidgen)"
+
+# Establish who is being discussed, then refer back to her by pronoun only. With
+# no history the second question is unanswerable, so the address is the proof.
+ask admin "$CONV" "Look up Dana Whitfield." >/dev/null
+contains "a follow-up resolves against the earlier turn" "Harrowgate" \
+  "$(ask admin "$CONV" "What is her home address?")"
+
+# The partitioning either side of that: a fresh conversation inherits nothing,
+# and one caller's history is not another's, even under the same conversation id.
+if [[ "$(ask admin "memory-$(uuidgen)" "What is her home address?")" == *"Harrowgate"* ]]; then
+  printf "  \033[31mFAIL\033[0m  a new conversation inherited the previous one\n"; FAIL=$((FAIL + 1))
+else
+  printf "  \033[32mPASS\033[0m  a new conversation starts with no history\n"; PASS=$((PASS + 1))
+fi
+if [[ "$(ask support "$CONV" "What is her home address?")" == *"Harrowgate"* ]]; then
+  printf "  \033[31mFAIL\033[0m  a different caller read this conversation's history\n"; FAIL=$((FAIL + 1))
+else
+  printf "  \033[32mPASS\033[0m  history is not readable by a different caller\n"; PASS=$((PASS + 1))
+fi
+
+echo
+echo "7. Runtime — refuses callers without a valid token"
 ARN="$(terraform output -raw agent_runtime_arn)"
 ESC="$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$ARN")"
 URL="https://bedrock-agentcore.us-east-1.amazonaws.com/runtimes/$ESC/invocations?qualifier=DEFAULT"
@@ -104,7 +131,7 @@ check "an invalid token is rejected" "403" "$(curl -s -o /dev/null -w '%{http_co
   -H "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id: verify2-$(uuidgen)" -d '{"diagnostic":true}')"
 
 echo
-echo "7. Public site"
+echo "8. Public site"
 check "application loads" "200" "$(curl -s -o /dev/null -w '%{http_code}' "$SITE/")"
 check "documentation loads" "200" "$(curl -s -o /dev/null -w '%{http_code}' "$SITE/docs.html")"
 check "deep link falls back to the application" "200" \
@@ -118,8 +145,8 @@ contains "agent reachable through the site address" "customer-admin" \
      -d '{"diagnostic":true}')"
 
 echo
-echo "8. Housekeeping"
-check "every resource is tagged" "15" "$(aws resourcegroupstaggingapi get-resources --region us-east-1 \
+echo "9. Housekeeping"
+check "every resource is tagged" "16" "$(aws resourcegroupstaggingapi get-resources --region us-east-1 \
   --tag-filters Key=project,Values=bridge.ai Key=poc,Values=rrmg \
   --query 'length(ResourceTagMappingList)' --output text)"
 terraform plan -no-color -detailed-exitcode >/dev/null 2>&1
@@ -128,7 +155,8 @@ check "deployed state matches the code" "0" "$?"
 echo
 echo "-------------------------------------------------------------------"
 printf "  %d passed, %d failed\n" "$PASS" "$FAIL"
-echo "  Not covered: the agent writing an answer, which needs Bedrock model"
-echo "  access. See docs/TEST-RESULTS.md."
+echo "  Not covered: long-term memory, deliberately - the store holds one"
+echo "  conversation at a time and nothing is carried between them. See"
+echo "  terraform/memory.tf for why."
 echo
 [[ "$FAIL" -eq 0 ]]

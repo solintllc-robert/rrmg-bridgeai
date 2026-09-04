@@ -15,7 +15,7 @@ Terraform, tagged, and contains no stored passwords or API keys of any kind.
 
 ## What exists
 
-Fifteen AWS resources across seven parts:
+Sixteen AWS resources across eight parts:
 
 | Part | Job |
 |---|---|
@@ -23,6 +23,7 @@ Fifteen AWS resources across seven parts:
 | CloudFront + firewall | One public address for both the web page and the chatbot. |
 | ACGW-API | Front door onto the chatbot. |
 | Runtime | Runs the chatbot. Checks the caller's token before it starts. |
+| Memory | The conversation so far, so a follow-up question can be understood. |
 | ACGW-MCP | Turns the API into tools, and holds the permission rules. |
 | Mock API | Customer records: names, companies, work and home addresses. |
 | Terraform | Builds all of the above. |
@@ -51,31 +52,29 @@ Demonstrated concretely: two users, same question, same chatbot instructions.
 
 ## How it was tested
 
-`./scripts/verify.sh` runs 21 checks against the live system. **All 21 pass.**
+`./scripts/verify.sh` runs 24 checks against the live system.
 
 Covered: the API rejects unsigned callers; each user's token carries the right
 group; the gateway builds four tools from the API description; the permission
-rules allow and refuse correctly; the caller's identity survives every hop; the
-runtime rejects missing and invalid tokens; the public site serves correctly
-and its storage is not readable directly; every resource is tagged; and the
-deployed system matches the code exactly.
+rules allow and refuse correctly; the caller's identity survives every hop; a
+follow-up question is answered from the conversation so far, and that history is
+readable by nobody else; the runtime rejects missing and invalid tokens; the
+public site serves correctly and its storage is not readable directly; every
+resource is tagged; and the deployed system matches the code exactly.
 
 Full detail in `docs/TEST-RESULTS.md`.
 
 ## What does not work yet
 
-**One thing needs you: this account has no model capacity at all.** Not a
-permissions problem and not a model choice — every Bedrock daily token quota on
-the account is zero and marked not adjustable. Verified against ten models from
-six providers across four regions; all refuse identically. It needs an AWS
-support request to raise the Bedrock quota.
+**The chatbot does not know you between conversations.** It follows the
+conversation in front of it, so a follow-up question works, but it starts each
+new one from nothing and learns nothing about you over time. That is a choice
+rather than an omission: long-term memory would put customer details in front of
+the model without the gateway being asked, and the gateway is the whole point.
+The reasoning, and what it would take to change, is Q6 in
+`docs/OPEN-QUESTIONS.md`.
 
-So the chatbot has never actually written a sentence. Everything around that —
-receiving the question, checking who is asking, finding the tools, being
-allowed or refused — is tested and working. Nothing here needs redeploying when
-the quota arrives; the model is already configured.
-
-**One smaller gap:**
+**One gap that is not a choice:**
 
 1. **The chatbot can be reached directly, bypassing the firewall.** AgentCore
    offers a setting to prevent this; it conflicts with passing the user's
@@ -85,12 +84,14 @@ the quota arrives; the model is already configured.
 
 ## Decisions I made without asking
 
-Six, all in `docs/OPEN-QUESTIONS.md` with reasoning and how to reverse each.
-The two worth your attention:
+All in `docs/OPEN-QUESTIONS.md` with reasoning and how to reverse each. The
+three worth your attention:
 
 - **Group names** are `customer-admin` and `customer-support`. They appear in
   the token, the rules, and the tests.
 - **The model** is set to Claude Sonnet 4.5. One variable to change.
+- **Memory is short-term only**, for the reason above. Q6, and the one decision
+  here I would not reverse without reading it first.
 
 ## Cost
 
@@ -98,8 +99,10 @@ About **$7–10 a month** sitting idle. Almost all of that is the web firewall,
 which has a fixed monthly charge; everything else is pay-per-use and rounds to
 pennies at this volume. No servers, no databases, no gateways of the expensive
 kind. Chatbot sessions end after 15 minutes idle and cannot exceed an hour, so
-nothing can quietly accumulate. No model tokens have been spent, because no
-model is reachable.
+nothing can quietly accumulate. Stored conversations are deleted after seven
+days. Model tokens are the one part that scales with use, and a conversation
+costs more per turn than a single question does, because the turns so far are
+sent again each time.
 
 ## One thing that wasted time, recorded so it does not again
 
@@ -111,9 +114,10 @@ no reason, check the clock first — the command is in `docs/OPEN-QUESTIONS.md`.
 
 ## Where to start when you are back
 
-1. Raise an AWS support request for Bedrock on-demand token quota. Until that
-   lands, the chatbot cannot answer, and no code change will alter that.
-2. Walk the code with `docs/CODE-REVIEW.md` — six stops, about 45 minutes.
+1. Read Q6 in `docs/OPEN-QUESTIONS.md`. It is the one decision here with a
+   security argument behind it rather than a preference, and the one most likely
+   to be undone by somebody adding a feature without knowing why it was made.
+2. Walk the code with `docs/CODE-REVIEW.md` — seven stops, about 50 minutes.
 
 Browser sign-in has since been confirmed working: signing in on the deployed
 site produced a token that the tools gateway accepted. That attempt also

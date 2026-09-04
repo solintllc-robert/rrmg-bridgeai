@@ -125,7 +125,22 @@ names appear in the token, the policy, and the test scripts.
 
 ---
 
-## Q0. BLOCKER: this account has no model capacity at all — NEEDS AN AWS SUPPORT REQUEST
+## Q0. No longer blocking — kept for the diagnosis, not the status
+
+**This is resolved.** The stack now runs in account `278820798553`, and the
+agent has been observed answering in words. Everything below was written about
+account `817290607332`, which is a different account and no longer the one that
+matters; the quota requests it names have no bearing on the deployed system.
+
+Kept because the diagnosis is worth having if it ever recurs — in particular
+that an applied quota of zero looks like a permissions fault, that Service
+Quotas will not accept a request below the default, and that the throttle
+happens in plain Bedrock rather than in AgentCore.
+
+<details>
+<summary>The original entry</summary>
+
+### BLOCKER: this account has no model capacity at all — NEEDS AN AWS SUPPORT REQUEST
 
 The agent is deployed and working right up to the point of writing a sentence.
 It cannot get past that, and the reason is not what it first appeared to be.
@@ -223,6 +238,8 @@ chain is proven end to end, and the authorization rules are proven at the
 gateway where they are enforced. What has never been observed is the agent
 forming a reply in words.
 
+</details>
+
 ---
 
 ## Q4. Which model the agent uses — OPEN
@@ -246,5 +263,73 @@ open indefinitely.
 
 **If wrong:** raise `idle_runtime_session_timeout` / `max_lifetime` in
 `terraform/runtime.tf`.
+
+---
+
+## Q6. The assistant only remembers the conversation in front of it — OPEN, worth a decision
+
+**Chose:** short-term memory in AgentCore Memory, with no memory strategies
+attached. The agent can see the earlier turns of the conversation you are having
+and nothing else. It does not know you from one conversation to the next, and it
+learns nothing about you over time.
+
+**Why.** Long-term memory is the same feature with the extraction step switched
+on, and turning that on would quietly undo the thing this proof of concept is
+built to show.
+
+Who may see a home address is decided at ACGW-MCP, per tool call, from the group
+in the caller's token. History replayed into the model's context is not a tool
+call, so nothing consults the gateway on the way. Inside one conversation that
+does not matter: every value in it was retrieved minutes earlier by a call the
+gateway allowed, for the same person, holding the same groups. Across
+conversations it matters a great deal. A fact extracted while somebody held
+`customer-admin` would still be sitting in the store after they lost it, and the
+agent would repeat it back with the gateway never getting a say. The demo's
+central claim — that the refusal is enforced outside the chatbot — would become
+untrue in exactly the case that makes it interesting.
+
+Three things follow from that, all in the code rather than in this document:
+
+- History is filed under the caller's `sub` claim, read out of the token the
+  runtime already validated, never out of the request body. A caller who could
+  name their own actor id could name somebody else's.
+- The conversation id has a fingerprint of the caller's group list mixed into
+  it, so a change in entitlement starts a fresh conversation instead of
+  inheriting the previous one. This is the mitigation for the case above, and it
+  applies within a conversation too, not only across them.
+- `bedrock-agentcore:RetrieveMemoryRecords` is deliberately absent from the
+  runtime's role. It is the call that reads long-term memory. With no strategies
+  attached there is nothing for it to read — but withholding it means that if
+  somebody adds a strategy later without reading any of this, retrieval fails
+  loudly rather than working.
+
+**What it costs you.** No recognition across conversations, so no remembered
+preferences and no "as we discussed last week". For a directory assistant that
+is close to free: the records are looked up live every time, and what somebody
+was told last week is not what should be repeated to them now.
+
+**If wrong.** Adding recall across conversations means adding an
+`aws_bedrockagentcore_memory_strategy`, granting `RetrieveMemoryRecords`, and
+setting `retrieval_config` on `AgentCoreMemoryConfig` in `agent/main.py`. Do not
+do only that. Either constrain extraction so restricted values never enter the
+store, or re-check entitlement at retrieval time. Neither is a small change, and
+the group fingerprint in the session id is not sufficient on its own — it
+protects a conversation, and a long-term namespace outlives conversations.
+
+---
+
+## Q7. Seven days of stored conversations — FYI
+
+**Chose:** `memory_event_expiry_days = 7`.
+
+**Why:** it is the floor AgentCore Memory accepts. These events are a copy of
+customer records living outside the API that owns them, which is worth keeping
+short.
+
+**If wrong:** raise `memory_event_expiry_days` in `terraform/variables.tf`. Note
+that it cannot go lower. A stack holding real records rather than the mock ones
+should also set `encryption_key_arn` on the memory resource to a customer
+managed key, for the audit trail on its use — see the commented line in
+`terraform/memory.tf`.
 
 ---

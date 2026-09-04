@@ -84,6 +84,31 @@ data "aws_iam_policy_document" "runtime" {
   }
 
   statement {
+    sid    = "ConversationMemory"
+    effect = "Allow"
+    # Exactly the data-plane calls the Strands session manager makes: it
+    # appends each turn as an event and lists them back at the start of the
+    # next one.
+    actions = [
+      "bedrock-agentcore:CreateEvent",
+      "bedrock-agentcore:GetEvent",
+      "bedrock-agentcore:ListEvents",
+      "bedrock-agentcore:DeleteEvent",
+    ]
+    resources = [
+      aws_bedrockagentcore_memory.conversations.arn,
+      "${aws_bedrockagentcore_memory.conversations.arn}/*",
+    ]
+  }
+
+  # RetrieveMemoryRecords is deliberately not granted above. It is the call
+  # that reads long-term memory, and with no strategies attached there is
+  # nothing for it to read - but leaving it out means that if a strategy is
+  # ever added without revisiting the authorization question in memory.tf,
+  # retrieval fails loudly instead of quietly replaying facts to somebody the
+  # gateway would now refuse.
+
+  statement {
     sid    = "Observability"
     effect = "Allow"
     actions = [
@@ -175,8 +200,9 @@ resource "aws_bedrockagentcore_agent_runtime" "agent" {
   }
 
   environment_variables = {
-    ACGW_MCP_URL   = aws_bedrockagentcore_gateway.mcp.gateway_url
-    AGENT_MODEL_ID = var.agent_model_id
+    ACGW_MCP_URL    = aws_bedrockagentcore_gateway.mcp.gateway_url
+    AGENT_MODEL_ID  = var.agent_model_id
+    AGENT_MEMORY_ID = aws_bedrockagentcore_memory.conversations.id
   }
 
   # Bound so a forgotten browser tab cannot hold a session open indefinitely.

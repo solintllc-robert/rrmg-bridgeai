@@ -11,7 +11,15 @@ import { getAccessToken } from "./auth.js";
 
 const INVOKE_PATH = "/api/invocations";
 
-/** A stable id groups a conversation's turns into one runtime session. */
+/**
+ * A stable id groups a conversation's turns together.
+ *
+ * It does two jobs: as a header it keeps the turns on one runtime session, and
+ * in the body it tells the agent which stored conversation to continue. The
+ * body carries it as well as the header because the header is consumed by the
+ * runtime rather than passed on to the agent. "New conversation" clears it, so
+ * the next question starts a fresh history.
+ */
 function sessionId() {
   const key = "agent_session_id";
   let id = sessionStorage.getItem(key);
@@ -30,15 +38,17 @@ export async function askAgent(prompt) {
   const token = getAccessToken();
   if (!token) throw new Error("Your session has expired. Please sign in again.");
 
+  const conversationId = sessionId();
+
   const response = await fetch(INVOKE_PATH, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       Accept: "application/json",
-      "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": sessionId(),
+      "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": conversationId,
     },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, conversation_id: conversationId }),
   });
 
   const text = await response.text();

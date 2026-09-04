@@ -81,6 +81,16 @@ output "agent_runtime_id" {
   value       = aws_bedrockagentcore_agent_runtime.agent.agent_runtime_id
 }
 
+output "agent_memory_id" {
+  description = "Memory store holding conversation history, one partition per caller."
+  value       = aws_bedrockagentcore_memory.conversations.id
+}
+
+output "agent_memory_arn" {
+  description = "ARN of the memory store, for granting the runtime its event calls."
+  value       = aws_bedrockagentcore_memory.conversations.arn
+}
+
 # --- ACGW-API ----------------------------------------------------------------
 
 output "acgw_api_url" {
